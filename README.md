@@ -84,7 +84,7 @@ The game opens with a campaign picker.
 
 | Campaign | Chambers | Rules | Source |
 |---|---|---|---|
-| **Block-Man** | 3 | Reach the door | Recovered pixel-by-pixel from EGA screenshots of the original 1993 release |
+| **Block-Man** | **17** | Reach the door | **The complete authentic set (A–Q)**, read straight out of the 1993 executable |
 | **New Block-Man 2 Levels** | 36 | Collect every jewel, *then* the door opens | **Brand new levels** for the 1995 sequel's rules — not Soleau layouts |
 | **Block Dude** | 11 | Reach the door | Brandon Sterner's TI-83 clone, via the [Block Dude CE](https://github.com/merthsoft/blockdudece) port |
 
@@ -137,11 +137,22 @@ reproduced; boats, switches and rails are not implemented.
 
 ### Where the levels came from
 
-Block-Man ships **17 rooms, lettered A–Q** (the in-game help and IQ chart both
-confirm it; the shareware `BMAN1.DOC` describes only its 10-room free subset).
-Its room data is not stored as a plain grid in any shipped file — see
-`tools/extract/` for how far that went. Only three rooms were ever published as
-screenshots, so only those three are reproduced.
+Block-Man ships **17 rooms, lettered A–Q**, and **all 17 are now recovered**
+from the executable — the shareware build carries every room even though it
+only lets you play ten.
+
+They were never encrypted. The obstacle was that PKLITE has an *encrypted mode*
+and my decompressor was not using it; both modes emit output of identical
+length that terminates cleanly, so nothing obvious distinguished them. The
+wrong output looked structured but was garbage — 124 KB of "DOS program"
+containing no `int 21h` at all. With that fixed, the rooms are in the clear at
+`0x1aeb2`, stored **column-major** as 23 screens of 28 records, each record a
+length byte plus 19 tiles. Transposed, every screen is 28x19 — exactly the
+playfield at the game's 20x18 pixel tiles. Screens 17–22 are the six skits.
+
+**Cross-validated**: rooms B, C and D were also recovered independently from
+published screenshots by pixel analysis, and the two methods agree *exactly* on
+every block and door position.
 
 **Block Dude's levels are partly copies of Block-Man's rooms.** Comparing
 puzzle content — the offsets of every block and the door relative to

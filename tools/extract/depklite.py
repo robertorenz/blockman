@@ -145,11 +145,27 @@ def estimate_length(data):
 
 
 def score(out, clean):
-    """Prefer clean termination, plenty of output, and real text inside."""
+    """
+    Prefer clean termination, plenty of output, and above all output that
+    looks like real 16-bit code.
+
+    Text density alone is NOT enough to pick the right variant: PKLITE's
+    encrypted and unencrypted modes yield the same length and both terminate
+    cleanly, so they score identically on size. What separates them is whether
+    the result actually disassembles - count the standard `push bp; mov bp,sp`
+    prologue and `int 21h`, which are everywhere in real DOS code and almost
+    absent from mis-decoded output.
+    """
     if not out:
         return -1
+    prologue = sum(1 for i in range(len(out) - 2)
+                   if out[i] == 0x55 and out[i + 1] == 0x8B and out[i + 2] == 0xEC)
+    int21 = sum(1 for i in range(len(out) - 1) if out[i] == 0xCD and out[i + 1] == 0x21)
     printable = sum(1 for b in out if 32 <= b < 127 or b in (9, 10, 13))
-    return (1_000_000 if clean else 0) + len(out) + int(printable / len(out) * 100_000)
+    return ((1_000_000 if clean else 0)
+            + (prologue + int21) * 10_000
+            + len(out)
+            + int(printable / len(out) * 1_000))
 
 
 def find_offset(data, lo=0x60, hi=0x800, decrypt=False, verbose=False):

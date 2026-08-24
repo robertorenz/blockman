@@ -1,7 +1,7 @@
 # Original-game extraction
 
-Work in progress: recovering Block-Man's own 10 chambers from the 1993 release,
-to replace the Block Dude placeholder levels in `src/levels/levels.ts`.
+**Solved.** All 17 authentic Block-Man rooms (A–Q) are recovered from the 1993
+release and ship in `src/levels/blockman.ts`.
 
 ## Source
 
@@ -14,7 +14,7 @@ The game files are **not** committed here — download them yourself.
 
 | File | Size | Contents |
 |---|---|---|
-| `BMAN1.EXE` | 60,063 | PKLITE-compressed program **and level data** |
+| `BMAN1.EXE` | 60,063 | PKLITE-compressed program **and all 17 rooms** |
 | `BMAN1.OV0` | 126,080 | EGA sprite bitmaps (planar, `0x00`/`0xff` dominant) |
 | `BMAN1.OV1` | 6,547 | Help screen text |
 | `BMAN1.OV2` | 2,501 | IQ chart text |
@@ -74,24 +74,63 @@ document also names two things worth knowing: the registered build "include[s]
 solutions for all puzzles", and there was a **Construction Kit** that let owners
 "create and save my own puzzle rooms" — so a room file format existed.
 
-### What the key does *not* open
+### Correction: the executables were never encrypted
 
-- **`BMAN1.EXE` strings.** Both their plaintext and ciphertext are printable
-  ASCII, which a `| 0x80` key cannot produce, so they use a different,
-  high-bit-clear scheme. A per-column frequency attack converges on a constant
-  `0x0f` (which does turn the padding runs into spaces) but the rest stays
-  gibberish, so it is not a plain Vigenère either.
-- **Block-Man 2's level records.** Not SOLSOFT, and not coordinate pairs — the
-  even and odd byte streams have near-identical distributions. 124 distinct
-  values spread across a narrow band looks like packed or compressed data.
+An earlier pass here claimed `BMAN1.EXE` used a second, unbroken cipher. That
+was wrong, and the real cause was worse: **the decompression was broken.**
 
-## Remaining work
+PKLITE has an encrypted mode, and `depklite.py` was not using it. The two modes
+produce output of *identical length* that *both* terminate cleanly, so nothing
+in the obvious scoring could tell them apart. The wrong output looked plausible
+— it even contained real-looking structure — but it was garbage. The tell is
+that 124 KB of supposed DOS program contained **no `int 21h` at all** and not a
+single `push bp; mov bp,sp`.
 
-The tile alphabet is large (`$ ) . - & / ' " + ( ! # Q Y C D E F G L M A ...`),
-because the original draws each cell with a distinct EGA tile including corner
-and edge variants. To convert a blob into our four logical types
-(empty / wall / block / door) plus Block-Man's start, each character must be
-mapped to the sprite it selects.
+With `decrypt=True` the same file yields 83 prologues and 38 `int 21h` calls,
+entropy falls from 7.39 to 6.82, and every string is in the clear:
+`BMAN1.LV`, `bman1.dat`, `WRITE LEVEL`, `Clear this level (Y,N)?`,
+`THE GAME ROOM`, `THE LIBRARY`, `SECRET`.
 
-That mapping is recoverable by rendering the `BMAN1.OV0` sprite sheet and
-reading off which glyph is the movable block, the doorway and the player.
+`depklite.py` now scores candidates on whether the output *disassembles*, not
+on text density, so it cannot make this mistake again.
+
+## The level table (solved)
+
+`from_exe.py`. In the correctly decompressed shareware executable the rooms sit
+in the clear at **`0x1aeb2`**:
+
+```
+644 records of 20 bytes = 23 screens x 28 records
+each record: length byte 0x13 (= 19), then 19 tile bytes
+```
+
+The records are **columns, not rows**. Transposed, each screen is 28 wide by 19
+tall — exactly the 556x342 playfield at the game's 20x18 pixel tiles.
+
+| Screens | Contents |
+|---|---|
+| 0–16 | levels **A–Q**, all 17 |
+| 17–22 | the six skits |
+
+```
+.  outside      *  wall        T  wall torch (solid)
+   open         O  block       $  door
+<  Block-Man facing left       >  facing right
+```
+
+Note the shareware executable carries **all 17 rooms**, not just the 10 it will
+let you play.
+
+**Verification.** Rooms B, C and D were independently recovered from published
+screenshots by `from_screenshot.py`. Comparing block and door offsets relative
+to Block-Man's start, the two methods — JPEG pixel analysis and binary
+extraction — agree *exactly* on all three.
+
+### Still unsolved
+
+**Block-Man 2's level records.** Not SOLSOFT, and not coordinate pairs — the
+even and odd byte streams have near-identical distributions. Worth redoing now
+that `BMAN2.EXE` decompresses correctly (517 prologues, 92 `int 21h`); the
+earlier analysis of it used the broken output.
+
+

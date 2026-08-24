@@ -18,11 +18,11 @@ export const CAMPAIGNS: Campaign[] = [
   {
     id: 'blockman',
     name: 'Block-Man',
-    blurb: "The original chambers of King Triangulos.",
+    blurb: 'All 17 original chambers of King Triangulos, A to Q.',
     source:
-      'Recovered pixel-by-pixel from EGA screenshots of the 1993 Soleau ' +
-      'Software release. The original has 17 rooms; only these three were ' +
-      'ever published as screenshots.',
+      'Read straight out of the 1993 Soleau Software executable — the ' +
+      'complete, authentic level set. Rooms B, C and D independently match ' +
+      'published screenshots block for block.',
     levels: BLOCKMAN_LEVELS,
   },
   {

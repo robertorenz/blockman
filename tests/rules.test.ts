@@ -288,6 +288,21 @@ describe('campaigns', () => {
     }
   });
 
+  it('ships all 17 authentic Block-Man rooms, A to Q', () => {
+    const c = CAMPAIGNS.find((x) => x.id === 'blockman')!;
+    expect(c.levels).toHaveLength(17);
+    expect(c.levels.map((l) => l.name)).toEqual(
+      Array.from({ length: 17 }, (_, i) => `Room ${String.fromCharCode(65 + i)}`),
+    );
+    // Every room has exactly one door and a start that is not inside a wall.
+    for (const l of c.levels) {
+      const s = loadLevel(l);
+      expect([...s.tiles].filter((t) => t === Tile.Door)).toHaveLength(1);
+      expect(at(s, s.x, s.y)).not.toBe(Tile.Wall);
+      expect([...s.tiles].filter((t) => t === Tile.Block).length).toBeGreaterThan(0);
+    }
+  });
+
   it('bands the new Block-Man 2 levels into easy, medium and hard', () => {
     const c = CAMPAIGNS.find((x) => x.id === 'blockman2')!;
     const count = (t: string) => c.levels.filter((l) => l.tier === t).length;
