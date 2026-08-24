@@ -206,6 +206,27 @@ the next slot, which the length pattern supports — long runs of near-full slot
 If that is right, the maps are elsewhere and probably built at run time, which
 would explain why no scan finds them.
 
+### Hypotheses tested and eliminated
+
+Every one of these was checked against the data and failed:
+
+| Hypothesis | How it died |
+|---|---|
+| SOLSOFT cipher applies | Output is not printable; key is specific to `BMAN1.OV3` |
+| Marker is a run/skip count | Mean following-run length is ~3.7 for *every* marker value from `0x98` to `0xc2` — no correlation at all |
+| Fixed-width row RLE | Decoded totals scatter from 6 to 530 under four different count offsets |
+| Rows grouped per level | Not one run of three consecutive slots shares a decoded total |
+| Marker is an action type (solutions) | Markers are far too rare — mean 8 per slot, and many slots contain none |
+| Pure (x, y) coordinate pairs | Run lengths between markers are mixed parity (2, then 3, then 4) |
+| Packed tile+count in one byte | No split of the low byte into tile and count bits yields a constant decoded width |
+
+What *is* established: low bytes occupy a dense contiguous band `0x32`–`0x64`
+(51 values) with a handful of outliers up to `0x74`; markers `0x98`–`0xc2` are
+sparse and their frequency tapers smoothly; plotted as pairs the coordinates do
+land in a compact, level-sized 2–36 by 2–21 window, and one slot shows a clear
+floor-like cluster along its bottom edge. So the data is *positional*, but the
+exact grammar is not recoverable by inference alone.
+
 ### What a real attempt needs
 
 Blind pattern-matching over 160 KB of code does not converge — the graphics
@@ -213,10 +234,19 @@ library alone produced two false positives here, chains of `cmp al, 0x32` /
 `0x33` / `0x34` that look exactly like a tile dispatch but are SVGA chipset
 detection reading BIOS signature digits.
 
-Doing this properly means resolving the segment layout first (PKLITE rewrites
-the MZ header, so the original `CS:IP`/`DS` must be recovered from the depacker
-stub), then computing this array's offset within DS, then finding the code that
-indexes it and following the call graph back from the level-select UI. That is
-a disassembler session with cross-references, not something to grep for.
+Statistical inference over the byte stream is exhausted — the table above is
+the evidence. Two approaches remain, and both are qualitatively different from
+anything tried here:
+
+1. **Proper static RE.** PKLITE rewrites the MZ header, so the original
+   `CS:IP`/`DS` must first be recovered from the depacker stub; only then can
+   this array's data-segment offset be matched against code references and the
+   consumer found. Searching for the decoder by byte pattern does not work —
+   the graphics library alone yielded two false positives that look exactly
+   like a tile dispatch (`cmp al,0x32/0x33/0x34`) but are SVGA chipset
+   detection reading BIOS signature digits.
+2. **Run the game.** Under an emulator the maps can be read off the screen, or
+   the decoded map array can be dumped straight out of memory — which sidesteps
+   the format question entirely.
 
 
