@@ -33,13 +33,19 @@ function step(s: GameState, a: Action): boolean {
   return (a === 'grab' ? grabOrDrop(s) : move(s, a)).kind !== 'none';
 }
 
-/** Only block cells can change, so the grid contributes just their indices. */
+/**
+ * Blocks and jewels are the only cells that change, so the grid contributes
+ * just their indices. Leaving the jewels out collapses genuinely different
+ * states together and prunes valid solutions.
+ */
 function key(s: GameState): string {
   let blocks = '';
+  let gems = '';
   for (let i = 0; i < s.tiles.length; i++) {
     if (s.tiles[i] === Tile.Block) blocks += i.toString(36) + ',';
+    else if (s.tiles[i] === Tile.Gem) gems += i.toString(36) + ',';
   }
-  return `${s.x}|${s.y}|${s.facing[0]}|${s.carrying ? 1 : 0}|${blocks}`;
+  return `${s.x}|${s.y}|${s.facing[0]}|${s.carrying ? 1 : 0}|${blocks}|${gems}`;
 }
 
 /**
@@ -135,7 +141,7 @@ class Heap {
 // --- searches --------------------------------------------------------------
 
 interface Outcome {
-  status: 'OPTIMAL' | 'SOLVED' | 'UNPROVEN';
+  status: 'OPTIMAL' | 'SOLVED' | 'UNPROVEN' | 'UNSOLVABLE';
   moves?: number;
   expanded: number;
   ms: number;
@@ -167,7 +173,10 @@ function bfs(index: number): Outcome {
     }
     frontier = next;
   }
-  return { status: 'UNPROVEN', expanded, ms: Date.now() - t0 };
+  // An empty frontier means every reachable state was visited, so the chamber
+  // really cannot be escaped - quite different from running out of budget.
+  const exhausted = frontier.length === 0 && expanded < BFS_CAP;
+  return { status: exhausted ? 'UNSOLVABLE' : 'UNPROVEN', expanded, ms: Date.now() - t0 };
 }
 
 /**
@@ -182,9 +191,11 @@ function astar(index: number, weight: number): Outcome {
   const t0 = Date.now();
   const far = start.width + start.height;
 
+  // With jewels outstanding the door is shut, so heading straight for it is
+  // not progress; weight the remaining jewels far above the walk home.
   const h = (s: GameState) => {
     const d = field[s.y * s.width + s.x];
-    return (d < 0 ? far : d) + (s.carrying ? 1 : 0);
+    return (d < 0 ? far : d) + (s.carrying ? 1 : 0) + s.gemsLeft * far;
   };
 
   const seen = new Set([key(start)]);
@@ -241,7 +252,9 @@ for (let i = 0; i < LEVELS.length; i++) {
       ? `ESCAPABLE  optimal ${String(out.moves).padStart(4)} moves${''.padEnd(12)}`
       : out.status === 'SOLVED'
         ? `ESCAPABLE  found   ${String(out.moves).padStart(4)} moves${via.padEnd(12)}`
-        : `UNPROVEN   search exhausted its cap  `;
+        : out.status === 'UNSOLVABLE'
+          ? `UNSOLVABLE state space fully explored  `
+          : `UNPROVEN   search ran out of budget    `;
 
   console.log(
     `${name} ${verdict}  ${out.expanded.toLocaleString().padStart(10)} states  ${(

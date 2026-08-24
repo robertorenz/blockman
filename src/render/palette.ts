@@ -20,6 +20,12 @@ export const PALETTE = {
   blockDark: '#7a5423',
   blockBand: '#8c6229',
 
+  // Jewels (Block-Man 2)
+  gemBright: '#ffe27a',
+  gemFace: '#e8c33c',
+  gemDeep: '#a37d17',
+  gemSpark: '#fffdf2',
+
   // Exit
   doorGlow: '#3fb950',
   doorFrame: '#2b6f3a',

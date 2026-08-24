@@ -4,6 +4,8 @@ export const enum Tile {
   Wall = 1,
   Block = 2,
   Door = 3,
+  /** Block-Man 2's jewels: collect every one before the door will open. */
+  Gem = 4,
 }
 
 export type Facing = 'left' | 'right';
@@ -26,6 +28,10 @@ export interface GameState {
   facing: Facing;
   /** True while Block-Man is holding a block above his head. */
   carrying: boolean;
+  /** Jewels still to collect. The door stays shut until this reaches zero. */
+  gemsLeft: number;
+  /** Jewels the level started with; zero for the Block-Man 1 rules. */
+  gemsTotal: number;
   moves: number;
   won: boolean;
 }
@@ -39,6 +45,7 @@ export type StepKind =
   | 'fall'
   | 'pickup'
   | 'drop'
+  | 'gem'
   | 'exit';
 
 export interface StepResult {

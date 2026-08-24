@@ -23,9 +23,10 @@ npm run dev      # http://localhost:5173
 | **Fall any distance** | Gravity is instant and harmless. |
 | **Carry one block** | Lift the block you are facing; it rides above your head. |
 | **Drop builds stairs** | The block is released in front of you and falls until it lands. |
+| **Jewels** *(Block-Man 2 only)* | The doorway stays dark until every jewel is collected. Falling past one picks it up, and a dropped block rests on a jewel rather than burying it. |
 
-There are no gems to collect and nothing to push. Reaching the glowing doorway
-is the entire win condition.
+Nothing is ever pushed. In Block-Man reaching the glowing doorway is the entire
+win condition; Block-Man 2 adds the jewels.
 
 ### Controls
 
@@ -71,21 +72,39 @@ src/
     index.ts     the two campaigns
     levels.ts    Block Dude — generated, see tools/
     blockman.ts  Block-Man — generated, see tools/extract/
+    blockman2.ts Block-Man 2 — generated, see tools/bm2-levels.mjs
 ```
 
 Keeping `core/` DOM-free is the decision that pays off: the rules are directly
 testable, and the same functions drive the automated solver.
 
-## Two campaigns
+## Three campaigns
 
-The game opens with a campaign picker. Both sets play by identical rules.
+The game opens with a campaign picker.
 
-| Campaign | Chambers | Source |
-|---|---|---|
-| **Block-Man** | 3 | Recovered pixel-by-pixel from EGA screenshots of the original 1993 release |
-| **Block Dude** | 11 | Brandon Sterner's TI-83 clone, via the [Block Dude CE](https://github.com/merthsoft/blockdudece) port |
+| Campaign | Chambers | Rules | Source |
+|---|---|---|---|
+| **Block-Man** | 3 | Reach the door | Recovered pixel-by-pixel from EGA screenshots of the original 1993 release |
+| **Block-Man 2** | 6 | Collect every jewel, *then* the door opens | **Original levels** in the style of the 1995 sequel — not Soleau layouts |
+| **Block Dude** | 11 | Reach the door | Brandon Sterner's TI-83 clone, via the [Block Dude CE](https://github.com/merthsoft/blockdudece) port |
 
 Progress, unlocks and best scores are tracked per campaign.
+
+### Block-Man 2
+
+Its sprite and sound names — `BMRW`/`BMLW` (walk), `BMRC`/`BMLC` (climb),
+`BMRG`/`BMLG` (grab), `BMRD`/`BMLD` (drop), and `SGEM`, `SBOAT`, `SSWITCH`,
+`STELE`, `RAIL` — confirm a jewel-collecting game with boats, switches and
+rails on top of Block-Man's carrying rules. `BMAN2.OV1` turned out to be a
+Genus Microprogramming resource archive of 47 PCX/VOC/SNG/GFT files, which
+`tools/extract/` can list; it holds no level data.
+
+Its rooms live in the executable as 100 Pascal-string records of 256 bytes at
+`0x2fcf2` of the decompressed image — exactly 25,600 bytes — but the contents
+are obfuscated, and its levels scroll beyond one screen so screenshots only
+ever show a fragment. **The six Block-Man 2 chambers here are therefore
+original, written in its style, not recovered.** Only the jewel rule is
+reproduced; boats, switches and rails are not implemented.
 
 ### Where the levels came from
 
@@ -138,8 +157,15 @@ the real rule functions:
 
 ```
 npx vite-node tools/solve.ts 400000 2000000 4,1000 blockman
+npx vite-node tools/solve.ts 400000 2000000 4,1000 blockman2
 npx vite-node tools/solve.ts 400000 2000000 4,1000 blockdude
 ```
+
+It distinguishes **UNSOLVABLE** (the whole reachable state space was explored
+and no escape exists) from **UNPROVEN** (the search ran out of budget). The
+state key must include jewel positions as well as block positions — omitting
+them collapses genuinely different states together and reports solvable levels
+as unsolvable.
 
 Breadth-first gives a provably optimal par; weighted A* guided by a wall-aware
 distance-to-door field finds *a* route when BFS runs out of room.
@@ -147,7 +173,8 @@ distance-to-door field finds *a* route when BFS runs out of room.
 | Campaign | Result | Chambers |
 |---|---|---|
 | Block-Man | Escapable, optimal par known | B *(22)*, C *(76)* |
-| Block-Man | Unproven — search hit its cap | D |
+| Block-Man | Unproven — search ran out of budget | D |
+| Block-Man 2 | Escapable, optimal par known | all 6 *(10, 10, 10, 12, 10, 15)* |
 | Block Dude | Escapable, optimal par known | 1 *(15)*, 2 *(61)*, 3 *(76)*, 6 *(62)* |
 | Block Dude | Escapable, route found | 5 *(105)*, 9 *(185)* |
 | Block Dude | Unproven — search hit its cap | 4, 7, 8, 10, 11 |
@@ -164,7 +191,7 @@ above.
 |---|---|
 | `npm run dev` | Dev server with HMR |
 | `npm run build` | Typecheck then bundle to `dist/` |
-| `npm test` | 37 unit tests |
+| `npm test` | 43 unit tests |
 | `npm run typecheck` | `tsc --noEmit` |
 | `node tools/make-artifact.mjs` | Flatten `dist/` into one self-contained HTML page |
 

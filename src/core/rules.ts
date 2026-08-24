@@ -7,9 +7,28 @@ function dx(facing: Facing): number {
   return facing === 'left' ? -1 : 1;
 }
 
-/** True once Block-Man is standing in the doorway. */
+/**
+ * Sweep up every jewel in the column Block-Man just moved through, from `fromY`
+ * down to where he came to rest. Falling past a jewel collects it.
+ */
+function collect(s: GameState, fromY: number): boolean {
+  let got = false;
+  for (let y = Math.min(fromY, s.y); y <= s.y; y++) {
+    if (at(s, s.x, y) === Tile.Gem) {
+      set(s, s.x, y, Tile.Empty);
+      s.gemsLeft--;
+      got = true;
+    }
+  }
+  return got;
+}
+
+/**
+ * Standing in the doorway wins - but in Block-Man 2 the door stays shut until
+ * every jewel has been collected. Levels with no jewels are unaffected.
+ */
 function checkWin(s: GameState): boolean {
-  if (at(s, s.x, s.y) === Tile.Door) s.won = true;
+  if (at(s, s.x, s.y) === Tile.Door && s.gemsLeft === 0) s.won = true;
   return s.won;
 }
 
@@ -39,8 +58,11 @@ export function move(s: GameState, dir: Facing): StepResult {
     if (s.carrying && isSolid(s, ahead.x, ahead.y - 1)) return NONE;
     s.x = ahead.x;
     s.moves++;
+    const fromY = s.y;
     const fell = settle(s);
+    const got = collect(s, fromY);
     checkWin(s);
+    if (got) return { kind: 'gem', fell };
     return { kind: fell > 0 ? 'fall' : 'walk', fell };
   }
 
@@ -60,8 +82,11 @@ export function move(s: GameState, dir: Facing): StepResult {
   s.x = ahead.x;
   s.y = s.y - 1;
   s.moves++;
+  const fromY = s.y;
   const fell = settle(s);
+  const got = collect(s, fromY);
   checkWin(s);
+  if (got) return { kind: 'gem', fell };
   return { kind: fell > 0 ? 'fall' : 'climb', fell };
 }
 
@@ -106,7 +131,9 @@ export function drop(s: GameState): StepResult {
 
   if (isSolid(s, bx, by)) return NONE; // nowhere to release it
 
-  while (!isSolid(s, bx, by + 1)) {
+  // A jewel stops a falling block, so dropping one can never destroy a jewel
+  // and make the level unwinnable.
+  while (!isSolid(s, bx, by + 1) && at(s, bx, by + 1) !== Tile.Gem) {
     by++;
     if (by > s.height) break;
   }

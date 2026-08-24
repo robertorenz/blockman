@@ -62,7 +62,8 @@ export class Renderer {
         const t = at(s, x, y);
         if (t === Tile.Wall) this.drawWall(s, x, y);
         else if (t === Tile.Block) this.drawBlock(x * TILE, y * TILE);
-        else if (t === Tile.Door) this.drawDoor(x, y, timeMs);
+        else if (t === Tile.Gem) this.drawGem(x, y, timeMs);
+        else if (t === Tile.Door) this.drawDoor(x, y, timeMs, s.gemsLeft === 0);
       }
     }
 
@@ -153,15 +154,59 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private drawDoor(gx: number, gy: number, timeMs: number): void {
+  /** A faceted lozenge, bobbing gently so jewels read as collectable. */
+  private drawGem(gx: number, gy: number, timeMs: number): void {
+    const ctx = this.ctx;
+    const bob = Math.sin(timeMs / 380 + gx * 1.7 + gy) * 1.2;
+    const cx = gx * TILE + TILE / 2;
+    const cy = gy * TILE + TILE / 2 + bob;
+    const rx = 4.5;
+    const ry = 8;
+
+    ctx.save();
+    ctx.shadowColor = P.gemBright;
+    ctx.shadowBlur = 6;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - ry);
+    ctx.lineTo(cx + rx, cy);
+    ctx.lineTo(cx, cy + ry);
+    ctx.lineTo(cx - rx, cy);
+    ctx.closePath();
+    ctx.fillStyle = P.gemFace;
+    ctx.fill();
+    ctx.restore();
+
+    // Left facet in shadow, a bright edge on the right.
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - ry);
+    ctx.lineTo(cx, cy + ry);
+    ctx.lineTo(cx - rx, cy);
+    ctx.closePath();
+    ctx.fillStyle = P.gemDeep;
+    ctx.fill();
+
+    ctx.strokeStyle = P.gemBright;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - ry);
+    ctx.lineTo(cx + rx, cy);
+    ctx.stroke();
+
+    ctx.fillStyle = P.gemSpark;
+    ctx.fillRect(Math.round(cx - 1), Math.round(cy - ry + 3), 1, 2);
+  }
+
+  private drawDoor(gx: number, gy: number, timeMs: number, open: boolean): void {
     const ctx = this.ctx;
     const x = gx * TILE;
     const y = gy * TILE;
-    const pulse = 0.55 + 0.45 * Math.sin(timeMs / 520);
+    // A door still waiting on jewels sits dim and unlit.
+    const pulse = open ? 0.55 + 0.45 * Math.sin(timeMs / 520) : 0.12;
 
     ctx.save();
     ctx.shadowColor = P.doorGlow;
-    ctx.shadowBlur = 10 + 8 * pulse;
+    ctx.shadowBlur = open ? 10 + 8 * pulse : 0;
 
     ctx.fillStyle = P.doorInner;
     ctx.fillRect(x + 3, y + 2, TILE - 6, TILE - 2);

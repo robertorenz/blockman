@@ -178,6 +178,55 @@ describe('fidelity to the original', () => {
   });
 });
 
+describe('jewels (Block-Man 2)', () => {
+  it('keeps the door shut until every jewel is taken', () => {
+    const s = scene(['......', 'D@.*..', '######'], 'left');
+    expect(s.gemsTotal).toBe(1);
+    move(s, 'left'); // already facing left, so this steps onto the door
+    expect(s.x).toBe(0);
+    expect(s.won).toBe(false); // standing in the doorway, but a jewel remains
+  });
+
+  it('opens the door once the last jewel is taken', () => {
+    const s = scene(['......', 'D@*...', '######'], 'left');
+    move(s, 'right'); // turn
+    expect(move(s, 'right').kind).toBe('gem');
+    expect(s.gemsLeft).toBe(0);
+    move(s, 'left'); // turn
+    move(s, 'left');
+    move(s, 'left');
+    expect(s.won).toBe(true);
+  });
+
+  it('sweeps up jewels passed through while falling', () => {
+    // He starts on solid ground and steps into a shaft with two jewels in it.
+    const s = scene(['.@..', '##*.', '#.*.', '#...', '####'], 'right');
+    expect(s.gemsTotal).toBe(2);
+    const r = move(s, 'right');
+    expect(r.kind).toBe('gem');
+    expect(s.gemsLeft).toBe(0);
+    expect(s.y).toBe(3);
+  });
+
+  it('never lets a dropped block destroy a jewel', () => {
+    const s = scene(['......', '.@o...', '###.##', '###*##', '######'], 'right');
+    pickUp(s);
+    move(s, 'right'); // into the cell the block vacated
+    expect(drop(s).kind).toBe('drop');
+    // The block rests on the jewel rather than replacing it.
+    expect(at(s, 3, 2)).toBe(Tile.Block);
+    expect(at(s, 3, 3)).toBe(Tile.Gem);
+    expect(s.gemsLeft).toBe(1);
+  });
+
+  it('leaves jewel-free levels behaving exactly as before', () => {
+    const s = scene(['....', 'D@..', '####'], 'left');
+    expect(s.gemsTotal).toBe(0);
+    move(s, 'left');
+    expect(s.won).toBe(true);
+  });
+});
+
 describe('winning', () => {
   it('wins on reaching the doorway', () => {
     const s = scene(['....', 'D@..', '####'], 'left');
@@ -225,7 +274,7 @@ describe('shipped levels', () => {
 
 describe('campaigns', () => {
   it('exposes both level sets with stable ids', () => {
-    expect(CAMPAIGNS.map((c) => c.id).sort()).toEqual(['blockdude', 'blockman']);
+    expect(CAMPAIGNS.map((c) => c.id).sort()).toEqual(['blockdude', 'blockman', 'blockman2']);
     expect(new Set(CAMPAIGNS.map((c) => c.id)).size).toBe(CAMPAIGNS.length);
   });
 

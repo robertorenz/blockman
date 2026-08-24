@@ -1,5 +1,6 @@
 import type { LevelDef } from '../core/types';
 import { BLOCKMAN_LEVELS } from './blockman';
+import { BLOCKMAN2_LEVELS } from './blockman2';
 import { LEVELS as BLOCKDUDE_LEVELS } from './levels';
 
 export interface Campaign {
@@ -23,6 +24,16 @@ export const CAMPAIGNS: Campaign[] = [
       'Software release. The original has 17 rooms; only these three were ' +
       'ever published as screenshots.',
     levels: BLOCKMAN_LEVELS,
+  },
+  {
+    id: 'blockman2',
+    name: 'Block-Man 2',
+    blurb: 'Collect every jewel, then find the door.',
+    source:
+      'Original levels in the style of the 1995 sequel, not Soleau layouts. ' +
+      "Block-Man 2's own rooms are obfuscated inside its executable and scroll " +
+      'beyond one screen, so they cannot be read off screenshots.',
+    levels: BLOCKMAN2_LEVELS,
   },
   {
     id: 'blockdude',

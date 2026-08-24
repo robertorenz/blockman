@@ -28,6 +28,8 @@ const el = {
   name: document.querySelector<HTMLElement>('#hud-name')!,
   moves: document.querySelector<HTMLElement>('#hud-moves')!,
   best: document.querySelector<HTMLElement>('#hud-best')!,
+  gems: document.querySelector<HTMLElement>('#hud-gems')!,
+  gemsCell: document.querySelector<HTMLElement>('#hud-gems-cell')!,
   carry: document.querySelector<HTMLElement>('#hud-carry')!,
   sound: document.querySelector<HTMLButtonElement>('#btn-sound')!,
 };
@@ -70,6 +72,10 @@ function updateHud(): void {
   el.name.textContent = campaign.levels[levelIndex].name;
   el.moves.textContent = String(state.moves);
   el.best.textContent = best === undefined ? '--' : String(best);
+  // Only Block-Man 2 levels carry jewels, so the cell stays out of the way
+  // entirely for the others.
+  el.gemsCell.hidden = state.gemsTotal === 0;
+  el.gems.textContent = `${state.gemsTotal - state.gemsLeft}/${state.gemsTotal}`;
   el.carry.dataset.on = state.carrying ? 'true' : 'false';
   el.carry.textContent = state.carrying ? 'Carrying' : 'Empty-handed';
 }
@@ -96,6 +102,9 @@ function feedback(result: StepResult): void {
       break;
     case 'drop':
       sfx.play('drop');
+      break;
+    case 'gem':
+      sfx.play('gem');
       break;
   }
 }

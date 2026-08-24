@@ -2,7 +2,7 @@
  * PC-speaker style blips synthesised on the fly. Square waves through a short
  * envelope - no audio files, which keeps the whole game a single bundle.
  */
-type Cue = 'walk' | 'climb' | 'land' | 'pickup' | 'drop' | 'blocked' | 'win';
+type Cue = 'walk' | 'climb' | 'land' | 'pickup' | 'drop' | 'gem' | 'blocked' | 'win';
 
 interface Note {
   freq: number;
@@ -16,6 +16,10 @@ const CUES: Record<Cue, Note[]> = {
   land: [{ freq: 110, ms: 55, gain: 0.08 }],
   pickup: [{ freq: 520, ms: 45, gain: 0.07 }],
   drop: [{ freq: 240, ms: 55, gain: 0.07 }],
+  gem: [
+    { freq: 880, ms: 45, gain: 0.07 },
+    { freq: 1319, ms: 70, gain: 0.07 },
+  ],
   blocked: [{ freq: 90, ms: 70, gain: 0.05 }],
   win: [
     { freq: 523, ms: 90, gain: 0.09 },

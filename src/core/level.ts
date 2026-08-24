@@ -6,6 +6,7 @@ const CHAR_TO_TILE: Record<string, Tile> = {
   '#': Tile.Wall,
   o: Tile.Block,
   D: Tile.Door,
+  '*': Tile.Gem,
 };
 
 /** Build a fresh GameState from a level definition. */
@@ -25,6 +26,9 @@ export function loadLevel(def: LevelDef): GameState {
     }
   }
 
+  let gems = 0;
+  for (const t of tiles) if (t === Tile.Gem) gems++;
+
   const state: GameState = {
     width,
     height,
@@ -33,6 +37,8 @@ export function loadLevel(def: LevelDef): GameState {
     y: def.start.y,
     facing: def.start.facing,
     carrying: false,
+    gemsLeft: gems,
+    gemsTotal: gems,
     moves: 0,
     won: false,
   };
