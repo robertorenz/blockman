@@ -473,6 +473,78 @@ kbd {
   border-radius: 4px;
 }
 
+/* --- campaign select ------------------------------------------------------ */
+
+.campaigns {
+  display: grid;
+  gap: 12px;
+}
+
+.campaign {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  font: inherit;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    transform 0.08s ease;
+}
+
+.campaign:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-strong);
+  border-left-color: var(--accent);
+}
+
+.campaign:active {
+  transform: translateY(1px);
+}
+
+.campaign:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+.campaign__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.campaign__name {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.1px;
+}
+
+.campaign__count {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign__blurb {
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.campaign__source {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
 /* --- level select --------------------------------------------------------- */
 
 .levelgrid {

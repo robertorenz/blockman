@@ -17,7 +17,10 @@
 import { at, cloneState, loadLevel } from '../src/core/level';
 import { grabOrDrop, move } from '../src/core/rules';
 import { Tile, type GameState } from '../src/core/types';
-import { LEVELS } from '../src/levels/levels';
+import { CAMPAIGNS } from '../src/levels';
+
+const CAMPAIGN = CAMPAIGNS.find((c) => c.id === (process.argv[5] ?? 'blockman')) ?? CAMPAIGNS[0];
+const LEVELS = CAMPAIGN.levels;
 
 const BFS_CAP = Number(process.argv[2] ?? 400_000);
 const ASTAR_CAP = Number(process.argv[3] ?? 4_000_000);
@@ -212,7 +215,7 @@ function astar(index: number, weight: number): Outcome {
 // --- report ----------------------------------------------------------------
 
 console.log(
-  `Verifying ${LEVELS.length} chambers  (bfs cap ${BFS_CAP.toLocaleString()}, ` +
+  `Verifying ${CAMPAIGN.name}: ${LEVELS.length} chambers  (bfs cap ${BFS_CAP.toLocaleString()}, ` +
     `A* cap ${ASTAR_CAP.toLocaleString()}, weights ${WEIGHTS.join(' then ')})\n`,
 );
 

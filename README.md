@@ -36,6 +36,7 @@ is the entire win condition.
 | <kbd>U</kbd> / <kbd>Z</kbd> | Undo |
 | <kbd>R</kbd> | Restart chamber |
 | <kbd>L</kbd> | Chamber select |
+| <kbd>C</kbd> | Change campaign |
 | <kbd>M</kbd> | Mute |
 | <kbd>?</kbd> | Rules |
 
@@ -67,30 +68,52 @@ src/
     modal.ts     <dialog>-based modals (never window.alert)
     screens.ts   rules, chamber select, localStorage progress
   levels/
-    levels.ts    generated — see tools/
+    index.ts     the two campaigns
+    levels.ts    Block Dude — generated, see tools/
+    blockman.ts  Block-Man — generated, see tools/extract/
 ```
 
 Keeping `core/` DOM-free is the decision that pays off: the rules are directly
 testable, and the same functions drive the automated solver.
 
-## Level provenance
+## Two campaigns
 
-> **The shipped levels are placeholders, not Block-Man's.** They are the 11
-> levels from Brandon Sterner's TI-83 *Block Dude*, via the open-source
-> [Block Dude CE](https://github.com/merthsoft/blockdudece) port. Block Dude
-> was inspired by Block-Man and shares its rules exactly, but Sterner authored
-> his own level set. Block-Man ships **17** chambers of its own.
->
-> Extracting the real 17 from the original release (`BMAN1.OV0`–`OV3`) is
-> tracked as the next piece of work.
+The game opens with a campaign picker. Both sets play by identical rules.
 
-Converted to ASCII by `tools/convert.mjs` + `tools/emit.mjs`:
+| Campaign | Chambers | Source |
+|---|---|---|
+| **Block-Man** | 3 | Recovered pixel-by-pixel from EGA screenshots of the original 1993 release |
+| **Block Dude** | 11 | Brandon Sterner's TI-83 clone, via the [Block Dude CE](https://github.com/merthsoft/blockdudece) port |
+
+Progress, unlocks and best scores are tracked per campaign.
+
+### Where the levels came from
+
+Block-Man ships **17 rooms, lettered A–Q** (the in-game help and IQ chart both
+confirm it; the shareware `BMAN1.DOC` describes only its 10-room free subset).
+Its room data is not stored as a plain grid in any shipped file — see
+`tools/extract/` for how far that went. Only three rooms were ever published as
+screenshots, so only those three are reproduced.
+
+**Block Dude's levels are partly copies of Block-Man's rooms.** Comparing
+puzzle content — the offsets of every block and the door relative to
+Block-Man's start, which ignores decorative padding — gives an exact match:
+
+| Block-Man room | Block Dude level | Blocks match |
+|---|---|---|
+| Room C | 3, "Descent" | **100%** |
+| Room D | 4, "Cathedral" | **100%** |
+| Room B | 2, best candidate | 13% |
+
+So Sterner copied rooms across, renumbering by position (level *N* = room *N*),
+but replaced others — Room B has no counterpart. Run `npx vite-node
+tools/compare.ts` to reproduce this. It also cross-validates the extractor: two
+independent sources, a C source port and a JPEG screenshot, yield the identical
+puzzle.
 
 ```
 #  wall      o  block      D  exit door      .  empty
 ```
-
-Chamber names are ours; the original game numbered them.
 
 ## Verification
 
@@ -114,17 +137,20 @@ Both behaviours are pinned by tests in the *fidelity to the original* block.
 the real rule functions:
 
 ```
-npx vite-node tools/solve.ts
+npx vite-node tools/solve.ts 400000 2000000 4,1000 blockman
+npx vite-node tools/solve.ts 400000 2000000 4,1000 blockdude
 ```
 
 Breadth-first gives a provably optimal par; weighted A* guided by a wall-aware
 distance-to-door field finds *a* route when BFS runs out of room.
 
-| Result | Chambers |
-|---|---|
-| Escapable, optimal par known | 1 *(15)*, 2 *(61)*, 3 *(76)*, 6 *(62)* |
-| Escapable, route found | 5 *(105)*, 9 *(185)* |
-| Unproven — search hit its cap | 4, 7, 8, 10, 11 |
+| Campaign | Result | Chambers |
+|---|---|---|
+| Block-Man | Escapable, optimal par known | B *(22)*, C *(76)* |
+| Block-Man | Unproven — search hit its cap | D |
+| Block Dude | Escapable, optimal par known | 1 *(15)*, 2 *(61)*, 3 *(76)*, 6 *(62)* |
+| Block Dude | Escapable, route found | 5 *(105)*, 9 *(185)* |
+| Block Dude | Unproven — search hit its cap | 4, 7, 8, 10, 11 |
 
 Block-Man is **PSPACE-complete** ([Ani et al., 2024](https://arxiv.org/html/2412.20079v1)),
 so exhaustive search is not expected to close the last five. *Unproven means
@@ -138,12 +164,13 @@ above.
 |---|---|
 | `npm run dev` | Dev server with HMR |
 | `npm run build` | Typecheck then bundle to `dist/` |
-| `npm test` | 33 unit tests |
+| `npm test` | 37 unit tests |
 | `npm run typecheck` | `tsc --noEmit` |
 | `node tools/make-artifact.mjs` | Flatten `dist/` into one self-contained HTML page |
 
 ## Credits
 
 Original **Block-Man** (1993) by Doug and Larry Murk, published by Soleau
-Software. Level layouts via the Block Dude CE port. This is an independent
-fan remake, not affiliated with or endorsed by Soleau Software.
+Software. **Block Dude** by Brandon Sterner; its levels reached here through
+the Block Dude CE port. This is an independent fan remake, not affiliated with
+or endorsed by Soleau Software.

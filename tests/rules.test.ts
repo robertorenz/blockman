@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { at, loadLevel } from '../src/core/level';
 import { drop, move, pickUp } from '../src/core/rules';
 import { Tile, type Facing, type GameState, type LevelDef } from '../src/core/types';
+import { CAMPAIGNS } from '../src/levels';
 import { LEVELS } from '../src/levels/levels';
 
 /** Build a throwaway level from ASCII. `@` marks the spawn cell. */
@@ -219,5 +220,28 @@ describe('shipped levels', () => {
   it('has 11 chambers with unique names', () => {
     expect(LEVELS).toHaveLength(11);
     expect(new Set(LEVELS.map((l) => l.name)).size).toBe(11);
+  });
+});
+
+describe('campaigns', () => {
+  it('exposes both level sets with stable ids', () => {
+    expect(CAMPAIGNS.map((c) => c.id).sort()).toEqual(['blockdude', 'blockman']);
+    expect(new Set(CAMPAIGNS.map((c) => c.id)).size).toBe(CAMPAIGNS.length);
+  });
+
+  it.each(CAMPAIGNS.map((c) => [c.id, c] as const))('%s loads every chamber', (_id, c) => {
+    expect(c.levels.length).toBeGreaterThan(0);
+    for (const def of c.levels) {
+      const s = loadLevel(def);
+      expect([...s.tiles].filter((t) => t === Tile.Door)).toHaveLength(1);
+      expect(at(s, s.x, s.y)).not.toBe(Tile.Wall);
+      expect(at(s, s.x, s.y)).not.toBe(Tile.Block);
+    }
+  });
+
+  it('names every chamber uniquely within its campaign', () => {
+    for (const c of CAMPAIGNS) {
+      expect(new Set(c.levels.map((l) => l.name)).size).toBe(c.levels.length);
+    }
   });
 });

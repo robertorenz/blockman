@@ -1,29 +1,31 @@
-import { LEVELS } from '../levels/levels';
+import { CAMPAIGNS, campaignById, type Campaign } from '../levels';
 import { showModal } from './modal';
 
 export interface Progress {
-  /** Highest level index unlocked. */
-  unlocked: number;
-  /** Best move count per level index, keyed by index. */
-  best: Record<number, number>;
+  /** Highest level index unlocked, per campaign id. */
+  unlocked: Record<string, number>;
+  /** Best move count, keyed "<campaignId>:<levelIndex>". */
+  best: Record<string, number>;
+  /** Campaign the player was last in. */
+  lastCampaign: string;
 }
 
-const STORAGE_KEY = 'blockman.progress.v1';
+const STORAGE_KEY = 'blockman.progress.v2';
 
 export function loadProgress(): Progress {
+  const empty: Progress = { unlocked: {}, best: {}, lastCampaign: CAMPAIGNS[0].id };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<Progress>;
-      return {
-        unlocked: Math.min(Math.max(parsed.unlocked ?? 0, 0), LEVELS.length - 1),
-        best: parsed.best ?? {},
-      };
-    }
+    if (!raw) return empty;
+    const parsed = JSON.parse(raw) as Partial<Progress>;
+    return {
+      unlocked: parsed.unlocked ?? {},
+      best: parsed.best ?? {},
+      lastCampaign: parsed.lastCampaign ?? CAMPAIGNS[0].id,
+    };
   } catch {
-    // Corrupt or unavailable storage just means a fresh run.
+    return empty;
   }
-  return { unlocked: 0, best: {} };
 }
 
 export function saveProgress(p: Progress): void {
@@ -32,6 +34,18 @@ export function saveProgress(p: Progress): void {
   } catch {
     // Private-mode browsing; progress simply will not persist.
   }
+}
+
+export function unlockedIn(p: Progress, c: Campaign): number {
+  return Math.min(Math.max(p.unlocked[c.id] ?? 0, 0), c.levels.length - 1);
+}
+
+export function bestFor(p: Progress, c: Campaign, i: number): number | undefined {
+  return p.best[`${c.id}:${i}`];
+}
+
+export function solvedIn(p: Progress, c: Campaign): number {
+  return c.levels.filter((_, i) => bestFor(p, c, i) !== undefined).length;
 }
 
 export function showHelp(): Promise<string | null> {
@@ -60,6 +74,7 @@ export function showHelp(): Promise<string | null> {
           <tr><td><kbd>U</kbd> / <kbd>Z</kbd></td><td>Undo the last move</td></tr>
           <tr><td><kbd>R</kbd></td><td>Restart the chamber</td></tr>
           <tr><td><kbd>L</kbd></td><td>Chamber select</td></tr>
+          <tr><td><kbd>C</kbd></td><td>Change campaign</td></tr>
           <tr><td><kbd>M</kbd></td><td>Mute sound</td></tr>
         </tbody>
       </table>`,
@@ -67,19 +82,54 @@ export function showHelp(): Promise<string | null> {
   });
 }
 
-export function showLevelSelect(progress: Progress): Promise<string | null> {
+/** The opening screen: pick which set of chambers to play. */
+export function showCampaignSelect(
+  progress: Progress,
+  opts: { dismissible?: boolean } = {},
+): Promise<string | null> {
+  const wrap = document.createElement('div');
+  wrap.className = 'campaigns';
+
+  for (const c of CAMPAIGNS) {
+    const done = solvedIn(progress, c);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'campaign';
+    btn.innerHTML = `
+      <span class="campaign__head">
+        <span class="campaign__name">${c.name}</span>
+        <span class="campaign__count">${done} / ${c.levels.length}</span>
+      </span>
+      <span class="campaign__blurb">${c.blurb}</span>
+      <span class="campaign__source">${c.source}</span>`;
+    btn.addEventListener('click', () => btn.closest('dialog')?.close('campaign:' + c.id));
+    wrap.append(btn);
+  }
+
+  return showModal({
+    eyebrow: 'Block-Man',
+    title: 'Choose your chambers',
+    body: wrap,
+    dismissible: opts.dismissible ?? false,
+    actions: opts.dismissible ? [{ label: 'Cancel', value: 'cancel' }] : [],
+  });
+}
+
+export function showLevelSelect(progress: Progress, campaignId: string): Promise<string | null> {
+  const c = campaignById(campaignId);
+  const unlocked = unlockedIn(progress, c);
+
   const grid = document.createElement('div');
   grid.className = 'levelgrid';
 
-  LEVELS.forEach((level, i) => {
-    const locked = i > progress.unlocked;
+  c.levels.forEach((level, i) => {
+    const locked = i > unlocked;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'levelcard' + (locked ? ' levelcard--locked' : '');
     btn.disabled = locked;
-    btn.value = String(i);
 
-    const best = progress.best[i];
+    const best = bestFor(progress, c, i);
     btn.innerHTML = `
       <span class="levelcard__num">${String(i + 1).padStart(2, '0')}</span>
       <span class="levelcard__name">${level.name}</span>
@@ -87,17 +137,15 @@ export function showLevelSelect(progress: Progress): Promise<string | null> {
         locked ? 'Locked' : best !== undefined ? `Best ${best} moves` : 'Unsolved'
       }</span>`;
 
-    btn.addEventListener('click', () => {
-      btn.closest('dialog')?.close('level:' + i);
-    });
+    btn.addEventListener('click', () => btn.closest('dialog')?.close('level:' + i));
     grid.append(btn);
   });
 
   return showModal({
-    eyebrow: `${Object.keys(progress.best).length} of ${LEVELS.length} escaped`,
+    eyebrow: `${c.name} — ${solvedIn(progress, c)} of ${c.levels.length} escaped`,
     title: 'Chamber select',
     body: grid,
     dismissible: true,
-    actions: [{ label: 'Close', value: 'close' }],
+    actions: [{ label: 'Change campaign', value: 'campaign' }],
   });
 }

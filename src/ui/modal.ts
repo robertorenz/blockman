@@ -58,6 +58,8 @@ export function showModal(opts: ModalOptions): Promise<string | null> {
   else body.append(opts.body);
   card.append(body);
 
+  // A modal with no actions (the opening campaign picker) gets no footer at
+  // all, rather than an empty bar with a stray divider above it.
   const footer = document.createElement('div');
   footer.className = 'modal__actions';
   for (const action of opts.actions) {
@@ -68,7 +70,7 @@ export function showModal(opts: ModalOptions): Promise<string | null> {
     btn.addEventListener('click', () => dialog.close(action.value));
     footer.append(btn);
   }
-  card.append(footer);
+  if (opts.actions.length) card.append(footer);
   dialog.append(card);
   document.body.append(dialog);
 

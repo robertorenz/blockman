@@ -22,6 +22,10 @@
         </div>
 
         <div class="hud" role="group" aria-label="Game status">
+          <div class="hud__cell hud__cell--wide">
+            <span class="hud__label">Campaign</span>
+            <span class="hud__value hud__value--name" id="hud-campaign">Block-Man</span>
+          </div>
           <div class="hud__cell">
             <span class="hud__label">Chamber</span>
             <span class="hud__value" id="hud-level">01</span>
@@ -48,6 +52,7 @@
           <button type="button" class="btn btn--ghost" data-act="undo" title="Undo (U)">Undo</button>
           <button type="button" class="btn btn--ghost" data-act="reset" title="Restart chamber (R)">Restart</button>
           <button type="button" class="btn btn--ghost" data-act="levels" title="Chamber select (L)">Chambers</button>
+          <button type="button" class="btn btn--ghost" data-act="campaign" title="Change campaign (C)">Campaign</button>
           <button type="button" class="btn btn--ghost" data-act="help" title="How to play (?)">Rules</button>
           <button
             type="button"

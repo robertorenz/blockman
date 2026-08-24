@@ -4,16 +4,26 @@ import { History } from './core/history';
 import { cloneState, loadLevel } from './core/level';
 import { grabOrDrop, move } from './core/rules';
 import type { GameState, StepResult } from './core/types';
-import { LEVELS } from './levels/levels';
+import { campaignById, type Campaign } from './levels';
 import { Sfx } from './render/audio';
 import { Renderer } from './render/renderer';
 import { isModalOpen, showModal } from './ui/modal';
-import { loadProgress, saveProgress, showHelp, showLevelSelect, type Progress } from './ui/screens';
+import {
+  bestFor,
+  loadProgress,
+  saveProgress,
+  showCampaignSelect,
+  showHelp,
+  showLevelSelect,
+  unlockedIn,
+  type Progress,
+} from './ui/screens';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#stage')!;
 const stageWrap = document.querySelector<HTMLDivElement>('#stage-wrap')!;
 
 const el = {
+  campaign: document.querySelector<HTMLElement>('#hud-campaign')!,
   level: document.querySelector<HTMLElement>('#hud-level')!,
   name: document.querySelector<HTMLElement>('#hud-name')!,
   moves: document.querySelector<HTMLElement>('#hud-moves')!,
@@ -27,17 +37,25 @@ const sfx = new Sfx();
 const history = new History();
 
 let progress: Progress = loadProgress();
+let campaign: Campaign = campaignById(progress.lastCampaign);
 let levelIndex = 0;
-let state: GameState = loadLevel(LEVELS[0]);
+let state: GameState = loadLevel(campaign.levels[0]);
 let shakeUntil = 0;
 
 function startLevel(index: number): void {
-  levelIndex = index;
-  state = loadLevel(LEVELS[index]);
+  levelIndex = Math.max(0, Math.min(index, campaign.levels.length - 1));
+  state = loadLevel(campaign.levels[levelIndex]);
   history.clear();
   renderer.snapTo(state);
   fit();
   updateHud();
+}
+
+function startCampaign(id: string): void {
+  campaign = campaignById(id);
+  progress.lastCampaign = campaign.id;
+  saveProgress(progress);
+  startLevel(unlockedIn(progress, campaign));
 }
 
 function fit(): void {
@@ -46,9 +64,10 @@ function fit(): void {
 }
 
 function updateHud(): void {
-  const best = progress.best[levelIndex];
+  const best = bestFor(progress, campaign, levelIndex);
+  el.campaign.textContent = campaign.name;
   el.level.textContent = String(levelIndex + 1).padStart(2, '0');
-  el.name.textContent = LEVELS[levelIndex].name;
+  el.name.textContent = campaign.levels[levelIndex].name;
   el.moves.textContent = String(state.moves);
   el.best.textContent = best === undefined ? '--' : String(best);
   el.carry.dataset.on = state.carrying ? 'true' : 'false';
@@ -97,20 +116,24 @@ function act(fn: (s: GameState) => StepResult): void {
 async function onWin(): Promise<void> {
   sfx.play('win');
 
-  const prevBest = progress.best[levelIndex];
+  const key = `${campaign.id}:${levelIndex}`;
+  const prevBest = progress.best[key];
   const isRecord = prevBest === undefined || state.moves < prevBest;
-  if (isRecord) progress.best[levelIndex] = state.moves;
-  progress.unlocked = Math.max(progress.unlocked, Math.min(levelIndex + 1, LEVELS.length - 1));
+  if (isRecord) progress.best[key] = state.moves;
+  progress.unlocked[campaign.id] = Math.max(
+    progress.unlocked[campaign.id] ?? 0,
+    Math.min(levelIndex + 1, campaign.levels.length - 1),
+  );
   saveProgress(progress);
   updateHud();
 
-  const isFinal = levelIndex === LEVELS.length - 1;
+  const isFinal = levelIndex === campaign.levels.length - 1;
 
   const choice = await showModal({
-    eyebrow: isFinal ? 'The kingdom of Bentangle' : `Chamber ${levelIndex + 1} cleared`,
+    eyebrow: isFinal ? campaign.name : `${campaign.name} — chamber ${levelIndex + 1} cleared`,
     title: isFinal ? 'You have won the princess' : 'Escaped',
     body: isFinal
-      ? `<p>Every chamber King Triangulos built has been beaten. Block-Man walks
+      ? `<p>Every chamber in ${campaign.name} has been beaten. Block-Man walks
          out of the last door a free man.</p>
          <p class="stat"><strong>${state.moves}</strong> moves on the final chamber.</p>`
       : `<p class="stat"><strong>${state.moves}</strong> moves${
@@ -119,7 +142,7 @@ async function onWin(): Promise<void> {
          ${prevBest !== undefined && !isRecord ? `<p class="muted">Your best is ${prevBest}.</p>` : ''}`,
     actions: isFinal
       ? [
-          { label: 'Chamber select', value: 'select' },
+          { label: 'Change campaign', value: 'campaign' },
           { label: 'Play again', primary: true, value: 'restart-all' },
         ]
       : [
@@ -131,8 +154,8 @@ async function onWin(): Promise<void> {
   if (choice === 'next') startLevel(levelIndex + 1);
   else if (choice === 'replay') startLevel(levelIndex);
   else if (choice === 'restart-all') startLevel(0);
-  else if (choice === 'select') void openLevelSelect();
-  else startLevel(Math.min(levelIndex + 1, LEVELS.length - 1));
+  else if (choice === 'campaign') void openCampaignSelect();
+  else startLevel(Math.min(levelIndex + 1, campaign.levels.length - 1));
 }
 
 function undo(): void {
@@ -147,9 +170,15 @@ function undo(): void {
   updateHud();
 }
 
+async function openCampaignSelect(dismissible = true): Promise<void> {
+  const choice = await showCampaignSelect(progress, { dismissible });
+  if (choice?.startsWith('campaign:')) startCampaign(choice.slice(9));
+}
+
 async function openLevelSelect(): Promise<void> {
-  const choice = await showLevelSelect(progress);
+  const choice = await showLevelSelect(progress, campaign.id);
   if (choice?.startsWith('level:')) startLevel(Number(choice.slice(6)));
+  else if (choice === 'campaign') void openCampaignSelect();
 }
 
 async function confirmReset(): Promise<void> {
@@ -180,15 +209,13 @@ function toggleSound(): void {
 
 // --- input ----------------------------------------------------------------
 
-const HELD = new Set<string>();
-
 window.addEventListener('keydown', (e) => {
   sfx.unlock();
 
   const key = e.key.toLowerCase();
   const handled = [
     'arrowleft', 'arrowright', 'arrowup', 'a', 'd', 'w',
-    ' ', 'u', 'z', 'r', 'l', 'm', '?',
+    ' ', 'u', 'z', 'r', 'l', 'c', 'm', '?',
   ];
   if (!handled.includes(key)) return;
   e.preventDefault();
@@ -196,9 +223,8 @@ window.addEventListener('keydown', (e) => {
   if (isModalOpen()) return;
 
   // Ignore OS key-repeat for the one-shot actions only.
-  const oneShot = ['u', 'z', 'r', 'l', 'm', '?', ' ', 'arrowup', 'w'];
+  const oneShot = ['u', 'z', 'r', 'l', 'c', 'm', '?', ' ', 'arrowup', 'w'];
   if (e.repeat && oneShot.includes(key)) return;
-  HELD.add(key);
 
   switch (key) {
     case 'arrowleft':
@@ -224,6 +250,9 @@ window.addEventListener('keydown', (e) => {
     case 'l':
       void openLevelSelect();
       break;
+    case 'c':
+      void openCampaignSelect();
+      break;
     case 'm':
       toggleSound();
       break;
@@ -233,11 +262,9 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-window.addEventListener('keyup', (e) => HELD.delete(e.key.toLowerCase()));
-
 // Touch controls mirror the keyboard exactly.
 document.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((btn) => {
-  const fire = (e: Event) => {
+  btn.addEventListener('click', (e) => {
     e.preventDefault();
     sfx.unlock();
     switch (btn.dataset.act) {
@@ -247,11 +274,11 @@ document.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((btn) => {
       case 'undo': undo(); break;
       case 'reset': void confirmReset(); break;
       case 'levels': void openLevelSelect(); break;
+      case 'campaign': void openCampaignSelect(); break;
       case 'help': void showHelp(); break;
       case 'sound': toggleSound(); break;
     }
-  };
-  btn.addEventListener('click', fire);
+  });
 });
 
 window.addEventListener('resize', fit);
@@ -269,11 +296,11 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
-startLevel(progress.unlocked);
+startLevel(unlockedIn(progress, campaign));
 requestAnimationFrame(frame);
 
 // Storage can throw outright in a sandboxed frame or private window, so the
-// first-run prompt must never depend on it succeeding.
+// opening flow must never depend on it succeeding.
 const SEEN_HELP = 'blockman.seenHelp';
 let seenHelp = false;
 try {
@@ -282,12 +309,16 @@ try {
   seenHelp = false;
 }
 
-if (!seenHelp) {
-  void showHelp().then(() => {
+void (async () => {
+  if (!seenHelp) {
+    await showHelp();
     try {
       localStorage.setItem(SEEN_HELP, '1');
     } catch {
       // Nothing to do; the rules will simply show again next visit.
     }
-  });
-}
+  }
+  // The campaign picker is the opening screen, and cannot be dismissed on a
+  // first run — a campaign has to be chosen before there is a game to play.
+  await openCampaignSelect(seenHelp);
+})();
