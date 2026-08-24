@@ -130,11 +130,23 @@ export function showLevelSelect(progress: Progress, campaignId: string): Promise
     btn.disabled = locked;
 
     const best = bestFor(progress, c, i);
+    const tier = level.tier
+      ? `<span class="tier tier--${level.tier}">${level.tier}</span>`
+      : '';
     btn.innerHTML = `
-      <span class="levelcard__num">${String(i + 1).padStart(2, '0')}</span>
+      <span class="levelcard__top">
+        <span class="levelcard__num">${String(i + 1).padStart(2, '0')}</span>
+        ${tier}
+      </span>
       <span class="levelcard__name">${level.name}</span>
       <span class="levelcard__meta">${
-        locked ? 'Locked' : best !== undefined ? `Best ${best} moves` : 'Unsolved'
+        locked
+          ? 'Locked'
+          : best !== undefined
+            ? `Best ${best}${level.par ? ` · par ${level.par}` : ''}`
+            : level.par !== undefined
+              ? `Unsolved · par ${level.par}`
+              : 'Unsolved'
       }</span>`;
 
     btn.addEventListener('click', () => btn.closest('dialog')?.close('level:' + i));

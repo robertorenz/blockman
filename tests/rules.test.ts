@@ -288,6 +288,27 @@ describe('campaigns', () => {
     }
   });
 
+  it('bands the new Block-Man 2 levels into easy, medium and hard', () => {
+    const c = CAMPAIGNS.find((x) => x.id === 'blockman2')!;
+    const count = (t: string) => c.levels.filter((l) => l.tier === t).length;
+    expect(c.levels).toHaveLength(36);
+    expect(count('easy')).toBe(6);
+    expect(count('medium')).toBe(15);
+    expect(count('hard')).toBe(15);
+    // Every one carries a solver-proven par, and every level has jewels.
+    for (const l of c.levels) {
+      expect(l.par).toBeGreaterThan(0);
+      expect(loadLevel(l).gemsTotal).toBeGreaterThan(0);
+    }
+  });
+
+  it('orders the Block-Man 2 tiers easy then medium then hard', () => {
+    const c = CAMPAIGNS.find((x) => x.id === 'blockman2')!;
+    const rank = { easy: 0, medium: 1, hard: 2 } as const;
+    const seq = c.levels.map((l) => rank[l.tier as keyof typeof rank]);
+    expect(seq).toEqual([...seq].sort((a, b) => a - b));
+  });
+
   it('names every chamber uniquely within its campaign', () => {
     for (const c of CAMPAIGNS) {
       expect(new Set(c.levels.map((l) => l.name)).size).toBe(c.levels.length);

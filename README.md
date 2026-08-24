@@ -72,7 +72,7 @@ src/
     index.ts     the two campaigns
     levels.ts    Block Dude — generated, see tools/
     blockman.ts  Block-Man — generated, see tools/extract/
-    blockman2.ts Block-Man 2 — generated, see tools/bm2-levels.mjs
+    blockman2.ts Block-Man 2 — generated, see tools/gen-bm2.ts
 ```
 
 Keeping `core/` DOM-free is the decision that pays off: the rules are directly
@@ -85,12 +85,41 @@ The game opens with a campaign picker.
 | Campaign | Chambers | Rules | Source |
 |---|---|---|---|
 | **Block-Man** | 3 | Reach the door | Recovered pixel-by-pixel from EGA screenshots of the original 1993 release |
-| **Block-Man 2** | 6 | Collect every jewel, *then* the door opens | **Original levels** in the style of the 1995 sequel — not Soleau layouts |
+| **New Block-Man 2 Levels** | 36 | Collect every jewel, *then* the door opens | **Brand new levels** for the 1995 sequel's rules — not Soleau layouts |
 | **Block Dude** | 11 | Reach the door | Brandon Sterner's TI-83 clone, via the [Block Dude CE](https://github.com/merthsoft/blockdudece) port |
 
 Progress, unlocks and best scores are tracked per campaign.
 
-### Block-Man 2
+### New Block-Man 2 Levels
+
+36 chambers in three bands, every one **solved by machine before it shipped**:
+
+| Tier | Count | Par | Block lifts |
+|---|---|---|---|
+| Easy | 6 | 10–15 | 0–1 |
+| Medium | 15 | 18–23 | 1–2 |
+| Hard | 15 | 26–34 | 3–5 |
+
+The band is **how many blocks the optimal solution has to carry**, not how far
+Block-Man walks — move count only measures distance, lifts measure how much of
+the level is actually a puzzle.
+
+`tools/gen-bm2.ts` generates them. Hand-drawing levels turned out to be a bad
+idea: four of the first six I drew were unsolvable, because a ledge has to sit
+*in* the walking row to be climbable, not float above it. So the generator
+builds terrain as a skyline right-to-left — the direction Block-Man travels —
+where each column rises at most one (which he climbs unaided) except at
+deliberately placed barriers that jump two and need a block dropped at their
+foot. Each barrier gets a block parked on its approach side. Then breadth-first
+search over the real rule functions either proves the chamber escapable and
+reports its par, or it is thrown away.
+
+Generating naively instead of constructively was hopeless — 1,313 of every
+3,000 candidates were unsolvable and the survivors were the flat, trivial ones.
+Building the barriers with their blocks took the yield from 300,000 candidates
+for zero hard levels to 7,733 for the full set.
+
+### Block-Man 2 (the original)
 
 Its sprite and sound names — `BMRW`/`BMLW` (walk), `BMRC`/`BMLC` (climb),
 `BMRG`/`BMLG` (grab), `BMRD`/`BMLD` (drop), and `SGEM`, `SBOAT`, `SSWITCH`,
@@ -102,8 +131,8 @@ Genus Microprogramming resource archive of 47 PCX/VOC/SNG/GFT files, which
 Its rooms live in the executable as 100 Pascal-string records of 256 bytes at
 `0x2fcf2` of the decompressed image — exactly 25,600 bytes — but the contents
 are obfuscated, and its levels scroll beyond one screen so screenshots only
-ever show a fragment. **The six Block-Man 2 chambers here are therefore
-original, written in its style, not recovered.** Only the jewel rule is
+ever show a fragment. **The 36 chambers here are therefore
+new, written for its rules, not recovered.** Only the jewel rule is
 reproduced; boats, switches and rails are not implemented.
 
 ### Where the levels came from
@@ -174,7 +203,7 @@ distance-to-door field finds *a* route when BFS runs out of room.
 |---|---|---|
 | Block-Man | Escapable, optimal par known | B *(22)*, C *(76)* |
 | Block-Man | Unproven — search ran out of budget | D |
-| Block-Man 2 | Escapable, optimal par known | all 6 *(10, 10, 10, 12, 10, 15)* |
+| New Block-Man 2 Levels | Escapable, optimal par known | **all 36** *(par 10–34)* |
 | Block Dude | Escapable, optimal par known | 1 *(15)*, 2 *(61)*, 3 *(76)*, 6 *(62)* |
 | Block Dude | Escapable, route found | 5 *(105)*, 9 *(185)* |
 | Block Dude | Unproven — search hit its cap | 4, 7, 8, 10, 11 |
@@ -191,7 +220,7 @@ above.
 |---|---|
 | `npm run dev` | Dev server with HMR |
 | `npm run build` | Typecheck then bundle to `dist/` |
-| `npm test` | 43 unit tests |
+| `npm test` | 45 unit tests |
 | `npm run typecheck` | `tsc --noEmit` |
 | `node tools/make-artifact.mjs` | Flatten `dist/` into one self-contained HTML page |
 

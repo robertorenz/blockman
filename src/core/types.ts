@@ -10,11 +10,19 @@ export const enum Tile {
 
 export type Facing = 'left' | 'right';
 
+export type Tier = 'easy' | 'medium' | 'hard';
+
 /** A level as authored: ASCII rows plus a spawn point. */
 export interface LevelDef {
   name: string;
   start: { x: number; y: number; facing: Facing };
   rows: string[];
+  /** Difficulty band, on campaigns that are banded. */
+  tier?: Tier;
+  /** Optimal move count, where a solver has proved one. */
+  par?: number;
+  /** Block lifts in that optimal solution. */
+  lifts?: number;
 }
 
 /** Full mutable game state for one attempt at one level. */
