@@ -189,9 +189,34 @@ promises `Hold CTRL key for answer`, these may be the stored **solutions**
 rather than the maps, or the skit scripts; 118 slots does not divide cleanly
 into either 10 or 40 levels.
 
-The decisive step is to disassemble the *consumer*: find the code that indexes
-this array and read how it interprets a marker byte. That needs the DS layout
-worked out so the array's data-segment offset can be matched against immediates
-in the code — a real disassembly session rather than more statistics.
+**Best hypothesis: these are the solutions, not the maps.** Block-Man 2 is
+mouse-driven — you click a spot and he walks there — so a stored solution is a
+sequence of click targets, and that is exactly the shape of this data: runs of
+**two** low bytes dominate (1052 of ~2450 runs), which reads as (x, y) pairs,
+each introduced by a marker that would be the action (walk / lift / drop / use).
+Low bytes span `0x32`–`0x74`, i.e. 0–66 once rebased — a plausible coordinate
+range for a level that scrolls. The marker frequencies fall off the way action
+types would, with one overwhelmingly common. And the help text promises exactly
+this: `Play a level. Hold CTRL key for answer.`
+
+118 slots also fits 40 levels if a solution longer than 255 bytes spills into
+the next slot, which the length pattern supports — long runs of near-full slots
+(200–250) broken by occasional zero-length ones.
+
+If that is right, the maps are elsewhere and probably built at run time, which
+would explain why no scan finds them.
+
+### What a real attempt needs
+
+Blind pattern-matching over 160 KB of code does not converge — the graphics
+library alone produced two false positives here, chains of `cmp al, 0x32` /
+`0x33` / `0x34` that look exactly like a tile dispatch but are SVGA chipset
+detection reading BIOS signature digits.
+
+Doing this properly means resolving the segment layout first (PKLITE rewrites
+the MZ header, so the original `CS:IP`/`DS` must be recovered from the depacker
+stub), then computing this array's offset within DS, then finding the code that
+indexes it and following the call graph back from the level-select UI. That is
+a disassembler session with cross-references, not something to grep for.
 
 
