@@ -161,9 +161,37 @@ table (the one hit is an identity lookup, `01 02 03 04 …`).
 47 directory entries plus payloads sum to exactly its 174,222 bytes, leaving no
 room for hidden level data.
 
-So Block-Man 2's rooms are packed, compressed, or built at run time. The next
-step is genuine disassembly: find the routine that populates the map array and
-read where it sources its bytes. That is a code-reading job, not a statistics
-job, and the strings and `int 21h` sites are now legible enough to start from.
+**The one big structured block, found.** At **`0x300f2`** there is an array of
+**118 Pascal strings in 256-byte slots** — the largest structured data in the
+file, ~14 KB of payload. Every slot is well-formed: a length byte, that many
+bytes, then zero padding to the next 256-byte boundary. It is the only
+candidate for the level data.
+
+Its encoding is a command stream, not a grid:
+
+- **low bytes `0x32`–`0x74`** (61 distinct) appear in runs — run lengths 2
+  (1052x), 4 (381x), 3 (373x), 5, 1, 6, 7 …
+- **high bytes `0x98`–`0xc2`** (39 distinct) punctuate those runs, and their
+  frequency falls off exactly like a count: `0x98` 548x, `0x99` 390x, `0x9a`
+  258x, `0x9b` 216x, tapering to single digits by `0xc2`
+
+What it is **not**, each ruled out by test:
+
+- not a fixed-width row RLE — decoding with the marker as a count
+  (`h - 0x97`, `h - 0x96`, `h - 0x80`, `h & 0x7f`) gives totals scattered from
+  6 to 530, and no formula yields a constant width
+- not rows grouped by level — there is not a single run of three consecutive
+  slots sharing a decoded total, so consecutive slots are not rows of one map
+- not plain (x, y) pairs — run lengths between markers vary from 1 to 10+
+
+So each slot is a self-contained variable-length stream. Given the help text
+promises `Hold CTRL key for answer`, these may be the stored **solutions**
+rather than the maps, or the skit scripts; 118 slots does not divide cleanly
+into either 10 or 40 levels.
+
+The decisive step is to disassemble the *consumer*: find the code that indexes
+this array and read how it interprets a marker byte. That needs the DS layout
+worked out so the array's data-segment offset can be matched against immediates
+in the code — a real disassembly session rather than more statistics.
 
 
