@@ -75,9 +75,16 @@ testable, and the same functions drive the automated solver.
 
 ## Level provenance
 
-The 11 chambers are the authentic original layouts, recovered from the
-open-source [Block Dude CE](https://github.com/merthsoft/blockdudece) port and
-converted to ASCII by `tools/convert.mjs` + `tools/emit.mjs`.
+> **The shipped levels are placeholders, not Block-Man's.** They are the 11
+> levels from Brandon Sterner's TI-83 *Block Dude*, via the open-source
+> [Block Dude CE](https://github.com/merthsoft/blockdudece) port. Block Dude
+> was inspired by Block-Man and shares its rules exactly, but Sterner authored
+> his own level set. Block-Man ships **17** chambers of its own.
+>
+> Extracting the real 17 from the original release (`BMAN1.OV0`–`OV3`) is
+> tracked as the next piece of work.
+
+Converted to ASCII by `tools/convert.mjs` + `tools/emit.mjs`:
 
 ```
 #  wall      o  block      D  exit door      .  empty
