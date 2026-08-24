@@ -39,6 +39,9 @@ jobs:
         run: npx vite build
 
       - uses: actions/configure-pages@v5
+        with:
+          # Turn Pages on if it is not already, so a fresh clone deploys first try.
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
