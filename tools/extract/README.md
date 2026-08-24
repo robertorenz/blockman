@@ -46,6 +46,45 @@ Inside the decompressed image, rows are **20 bytes**: one attribute byte
 - blobs 6–15 — **ten blobs, matching the ten chambers A–J**
 - blobs 16–17 — remaining artwork
 
+## The Soleau cipher (solved)
+
+`solsoft.py`. Soleau obfuscated strings with
+
+```
+ciphertext[i] = plaintext[i] XOR (KEY[i mod 7] | 0x80)      KEY = "SOLSOFT"
+```
+
+CR and LF pass through untouched and **the key index resets at the start of
+every line** — miss that and only the first line decodes.
+
+It fell out of a known-plaintext pair hiding in plain sight. The registered
+release ships `BMAN1.OV3` encrypted; the shareware release ships the same
+document as `BMAN1.OV2` in the clear. The encrypted file opens
+
+```
+f3 ef ec f3 ef e6 f4  f3 ef ec f3 ef e6 f4  f3 ef ec f3
+```
+
+— a seven-byte cycle over what the plaintext twin shows is a run of spaces, so
+each key byte is `cipher XOR 0x20`. That gives `d3 cf cc d3 cf c6 d4`, and
+XORing those with `0x80` spells `SOLSOFT`.
+
+Decrypts `BMAN1.OV3` to 2,504 bytes with **zero** non-text bytes. The recovered
+document also names two things worth knowing: the registered build "include[s]
+solutions for all puzzles", and there was a **Construction Kit** that let owners
+"create and save my own puzzle rooms" — so a room file format existed.
+
+### What the key does *not* open
+
+- **`BMAN1.EXE` strings.** Both their plaintext and ciphertext are printable
+  ASCII, which a `| 0x80` key cannot produce, so they use a different,
+  high-bit-clear scheme. A per-column frequency attack converges on a constant
+  `0x0f` (which does turn the padding runs into spaces) but the rest stays
+  gibberish, so it is not a plain Vigenère either.
+- **Block-Man 2's level records.** Not SOLSOFT, and not coordinate pairs — the
+  even and odd byte streams have near-identical distributions. 124 distinct
+  values spread across a narrow band looks like packed or compressed data.
+
 ## Remaining work
 
 The tile alphabet is large (`$ ) . - & / ' " + ( ! # Q Y C D E F G L M A ...`),
