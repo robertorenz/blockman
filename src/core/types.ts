@@ -10,7 +10,7 @@ export const enum Tile {
 
 export type Facing = 'left' | 'right';
 
-export type Tier = 'easy' | 'medium' | 'hard';
+export type Tier = 'easy' | 'medium' | 'hard' | 'extreme';
 
 /** A level as authored: ASCII rows plus a spawn point. */
 export interface LevelDef {

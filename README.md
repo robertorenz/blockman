@@ -85,24 +85,36 @@ The game opens with a campaign picker.
 | Campaign | Chambers | Rules | Source |
 |---|---|---|---|
 | **Block-Man** | **17** | Reach the door | **The complete authentic set (A–Q)**, read straight out of the 1993 executable |
-| **New Block-Man 2 Levels** | 36 | Collect every jewel, *then* the door opens | **Brand new levels** for the 1995 sequel's rules — not Soleau layouts |
+| **New Block-Man 2 Levels** | **46** | Collect every jewel, *then* the door opens | **Brand new levels** for the 1995 sequel's rules — not Soleau layouts |
 | **Block Dude** | 11 | Reach the door | Brandon Sterner's TI-83 clone, via the [Block Dude CE](https://github.com/merthsoft/blockdudece) port |
 
 Progress, unlocks and best scores are tracked per campaign.
 
 ### New Block-Man 2 Levels
 
-36 chambers in three bands, every one **solved by machine before it shipped**:
+46 chambers in four bands. Every one is **solved by breadth-first search before
+it ships**, so every par below is a *proven optimum*, not a route that happened
+to be found:
 
 | Tier | Count | Par | Block lifts |
 |---|---|---|---|
 | Easy | 6 | 10–15 | 0–1 |
-| Medium | 15 | 18–23 | 1–2 |
-| Hard | 15 | 26–34 | 3–5 |
+| Medium | 15 | 21–29 | 2 |
+| Hard | 15 | 24–31 | 3–4 |
+| **Extra hard** | **10** | **30–39** | **5–6** |
 
 The band is **how many blocks the optimal solution has to carry**, not how far
 Block-Man walks — move count only measures distance, lifts measure how much of
 the level is actually a puzzle.
+
+Five or six lifts is the practical ceiling, which was not obvious up front:
+blocks get reused, so piling on more barriers does not force proportionally
+more carrying. An earlier version of the generator used a *directed* search for
+the top tier to keep generation tractable. That was a mistake — a directed
+search finds a route, not the shortest one, so it silently overstated
+difficulty and mis-tiered 22 of 46 chambers. `tools/verify-bm2.ts` re-checks
+every recorded par against breadth-first search and now reports zero
+disagreements.
 
 `tools/gen-bm2.ts` generates them. Hand-drawing levels turned out to be a bad
 idea: four of the first six I drew were unsolvable, because a ledge has to sit

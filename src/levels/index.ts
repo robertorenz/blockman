@@ -28,7 +28,7 @@ export const CAMPAIGNS: Campaign[] = [
   {
     id: 'blockman2',
     name: 'New Block-Man 2 Levels',
-    blurb: 'Collect every jewel, then find the door. 36 chambers, easy to hard.',
+    blurb: 'Collect every jewel, then find the door. 46 chambers, easy to extra hard.',
     source:
       'Brand new levels built for the 1995 sequel’s rules — not Soleau ' +
       'layouts. Every one was solved by machine before it shipped, and the ' +

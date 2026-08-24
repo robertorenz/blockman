@@ -620,6 +620,14 @@ kbd {
   color: #f85149;
 }
 
+/* The top tier reads as a warning: filled, not outlined. */
+.tier--extreme {
+  color: #ffb3ab;
+  background: #6e1f1a;
+  border-color: #a83227;
+  letter-spacing: 0.6px;
+}
+
 .levelcard__num {
   font-family: var(--font-mono);
   font-size: 11px;

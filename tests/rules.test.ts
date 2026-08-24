@@ -303,13 +303,14 @@ describe('campaigns', () => {
     }
   });
 
-  it('bands the new Block-Man 2 levels into easy, medium and hard', () => {
+  it('bands the new Block-Man 2 levels into four tiers', () => {
     const c = CAMPAIGNS.find((x) => x.id === 'blockman2')!;
     const count = (t: string) => c.levels.filter((l) => l.tier === t).length;
-    expect(c.levels).toHaveLength(36);
+    expect(c.levels).toHaveLength(46);
     expect(count('easy')).toBe(6);
     expect(count('medium')).toBe(15);
     expect(count('hard')).toBe(15);
+    expect(count('extreme')).toBe(10);
     // Every one carries a solver-proven par, and every level has jewels.
     for (const l of c.levels) {
       expect(l.par).toBeGreaterThan(0);
@@ -317,9 +318,9 @@ describe('campaigns', () => {
     }
   });
 
-  it('orders the Block-Man 2 tiers easy then medium then hard', () => {
+  it('orders the Block-Man 2 tiers from easy up to extra hard', () => {
     const c = CAMPAIGNS.find((x) => x.id === 'blockman2')!;
-    const rank = { easy: 0, medium: 1, hard: 2 } as const;
+    const rank = { easy: 0, medium: 1, hard: 2, extreme: 3 } as const;
     const seq = c.levels.map((l) => rank[l.tier as keyof typeof rank]);
     expect(seq).toEqual([...seq].sort((a, b) => a - b));
   });

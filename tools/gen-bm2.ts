@@ -83,6 +83,95 @@ function solve(def: LevelDef, cap = 200_000): Solved | null {
   return null;
 }
 
+/**
+ * Weighted A* toward the door, jewels first. Finds *a* route rather than the
+ * shortest one, which is the only tractable option once a chamber has six or
+ * more barriers - breadth-first explodes combinatorially there.
+ */
+function solveFast(def: LevelDef, cap = 400_000): Solved | null {
+  const start = loadLevel(def);
+  const w = start.width;
+  const far = start.width + start.height;
+
+  // Wall-aware distance to the door, jewels weighted far above the walk home.
+  const doorIdx = start.tiles.indexOf(Tile.Door);
+  const dist = new Int32Array(start.width * start.height).fill(-1);
+  if (doorIdx >= 0) {
+    dist[doorIdx] = 0;
+    const q = [doorIdx];
+    for (let h = 0; h < q.length; h++) {
+      const cur = q[h];
+      const cx = cur % w;
+      const cy = (cur / w) | 0;
+      for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = cx + ox;
+        const ny = cy + oy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= start.height) continue;
+        const ni = ny * w + nx;
+        if (dist[ni] !== -1 || start.tiles[ni] === Tile.Wall) continue;
+        dist[ni] = dist[cur] + 1;
+        q.push(ni);
+      }
+    }
+  }
+  const h = (s: GameState) => {
+    const dd = dist[s.y * w + s.x];
+    return (dd < 0 ? far : dd) + s.gemsLeft * far;
+  };
+
+  const seen = new Set([key(start)]);
+  const heap: { s: GameState; g: number; lifts: number; f: number }[] = [];
+  const push = (n: (typeof heap)[0]) => {
+    heap.push(n);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (heap[p].f <= heap[i].f) break;
+      [heap[p], heap[i]] = [heap[i], heap[p]];
+      i = p;
+    }
+  };
+  const pop = () => {
+    const top = heap[0];
+    const last = heap.pop()!;
+    if (heap.length) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1;
+        const r = l + 1;
+        let m = i;
+        if (l < heap.length && heap[l].f < heap[m].f) m = l;
+        if (r < heap.length && heap[r].f < heap[m].f) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]];
+        i = m;
+      }
+    }
+    return top;
+  };
+
+  push({ s: start, g: 0, lifts: 0, f: 4 * h(start) });
+  let states = 0;
+  while (heap.length && states < cap) {
+    const node = pop();
+    states++;
+    for (const a of ACTIONS) {
+      const child = cloneState(node.s);
+      const r = a === 'grab' ? grabOrDrop(child) : move(child, a);
+      if (r.kind === 'none') continue;
+      const k = key(child);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const lifts = node.lifts + (r.kind === 'pickup' ? 1 : 0);
+      if (child.won) return { moves: child.moves, lifts, states };
+      const g = node.g + 1;
+      push({ s: child, g, lifts, f: g + 4 * h(child) });
+    }
+  }
+  return null;
+}
+
 // --- generation -------------------------------------------------------------
 
 interface Candidate {
@@ -92,7 +181,8 @@ interface Candidate {
 }
 
 function build(barriers: number): Candidate | null {
-  const w = range(16, 24);
+  // More barriers need more room to space them out, or they collide.
+  const w = barriers >= 5 ? range(24, 30) : range(16, 24);
 
   // Built right-to-left, because that is the way Block-Man travels: he starts
   // on the right and the doorway is on the left. Terrain rises by at most one
@@ -176,13 +266,19 @@ function build(barriers: number): Candidate | null {
 
 // --- naming -----------------------------------------------------------------
 
-const NAMES: Record<'medium' | 'hard', string[]> = {
+const NAMES: Record<'medium' | 'hard' | 'extreme', string[]> = {
   medium: [
     'The Antechamber', 'Two Steps Up', 'The Cistern', "Mason's Folly",
     'The Broken Stair', 'Quarry Row', 'The Low Arch', 'Pillars of Salt',
     'The Dry Well', 'The Narrow Shelf', 'Crossbeam', 'The Empty Vault',
     "Stonecutter's Yard", 'The Long Landing', 'The Sunken Court',
     'Buttress', 'The Sallyport', 'Kiln Row',
+  ],
+  extreme: [
+    'The Impossible Stair', "Triangulos' Last Word", 'The Black Vault',
+    'Nine Masons', 'The Sunless Keep', 'Ordeal of Bentangle',
+    'The Cruel Ascent', 'Chamber of Thorns', 'The Final Reckoning',
+    "The Princess's Gauntlet", 'The Long Fall', 'Endgame',
   ],
   hard: [
     "The King's Puzzle", 'Triangulos Ascending', 'The Deep Cellar',
@@ -209,7 +305,7 @@ const EASY: { name: string; rows: string[] }[] = [
 
 interface Chosen {
   name: string;
-  tier: 'easy' | 'medium' | 'hard';
+  tier: 'easy' | 'medium' | 'hard' | 'extreme';
   rows: string[];
   start: { x: number; y: number };
   moves: number;
@@ -237,15 +333,21 @@ for (const e of EASY) {
   seenSig.add(rows.join('|'));
 }
 
-const WANT = { medium: 15, hard: 15 };
-const got = { medium: 0, hard: 0 };
+const WANT = { medium: 15, hard: 15, extreme: 10 };
+const got = { medium: 0, hard: 0, extreme: 0 };
 let attempts = 0;
 
-while ((got.medium < WANT.medium || got.hard < WANT.hard) && attempts < 300_000) {
+while (
+  (got.medium < WANT.medium || got.hard < WANT.hard || got.extreme < WANT.extreme) &&
+  attempts < 300_000
+) {
   attempts++;
-  // Aim low or high depending on which tier still needs filling.
-  const wantHard = got.hard < WANT.hard;
-  const cand = build(wantHard ? range(3, 4) : range(1, 2));
+  // Aim at whichever tier still needs filling.
+  const cand = build(
+    got.extreme < WANT.extreme ? range(6, 8)
+      : got.hard < WANT.hard ? range(3, 4)
+      : range(1, 2),
+  );
   if (!cand) continue;
   const sig = cand.rows.join('|');
   if (seenSig.has(sig)) continue;
@@ -261,16 +363,22 @@ while ((got.medium < WANT.medium || got.hard < WANT.hard) && attempts < 300_000)
   // A cheap pass first. Capping out is not a rejection - the hardest chambers
   // are exactly the ones with the biggest state spaces, so those get a deep
   // second pass rather than being thrown away.
-  let res = solve(def, 150_000);
-  if (!res && state.gemsTotal >= 3 && got.hard < WANT.hard) {
-    res = solve(def, 2_000_000);
-  }
+  // Always breadth-first, so every chamber that ships carries a PROVEN OPTIMAL
+  // par and lift count. A directed search finds a route but not the shortest
+  // one, and tiering on it silently overstates difficulty - an earlier version
+  // of this file did exactly that and mis-tiered most of the campaign. If BFS
+  // cannot close a candidate within budget, the candidate is simply dropped.
+  const res = solve(def, 600_000);
   if (!res) continue;
 
   // One lift is a step; three or more is a genuine construction problem.
-  let tier: 'medium' | 'hard' | null = null;
-  if (res.lifts >= 1 && res.lifts <= 2 && res.moves >= 18) tier = 'medium';
-  else if (res.lifts >= 3 && res.moves >= 26 && state.gemsTotal >= 3) tier = 'hard';
+  // Bands are the OPTIMAL number of block lifts. Measured over thousands of
+  // solved candidates, five is about the practical ceiling: blocks get reused,
+  // so extra barriers do not force proportionally more carrying.
+  let tier: 'medium' | 'hard' | 'extreme' | null = null;
+  if (res.lifts >= 5 && res.moves >= 30 && state.gemsTotal >= 3) tier = 'extreme';
+  else if (res.lifts >= 3 && res.lifts <= 4 && res.moves >= 24 && state.gemsTotal >= 3) tier = 'hard';
+  else if (res.lifts === 2 && res.moves >= 18) tier = 'medium';
   if (!tier || got[tier] >= WANT[tier]) continue;
 
   seenSig.add(sig);
@@ -285,7 +393,7 @@ while ((got.medium < WANT.medium || got.hard < WANT.hard) && attempts < 300_000)
   got[tier]++;
 }
 
-const order = { easy: 0, medium: 1, hard: 2 } as const;
+const order = { easy: 0, medium: 1, hard: 2, extreme: 3 } as const;
 chosen.sort((a, b) => order[a.tier] - order[b.tier] || a.lifts - b.lifts || a.moves - b.moves);
 
 const out: string[] = [];
@@ -297,9 +405,10 @@ out.push('// obfuscated inside its executable and scroll beyond one screen, so t
 out.push('// cannot be recovered. See tools/extract/README.md.');
 out.push('//');
 out.push('// Every chamber was solved by breadth-first search over the real rule');
-out.push('// functions before being emitted, so all of them are provably escapable.');
+out.push('// functions before being emitted, so all of them are provably escapable');
+out.push('// and every par below is a PROVEN OPTIMUM, not a found route.');
 out.push('// The tier is how many block lifts the OPTIMAL solution needs:');
-out.push('//   easy 0-1 lifts     medium 1-2 lifts     hard 3 or more');
+out.push('//   easy 0-1   medium 2   hard 3-4   extreme 5 or more');
 out.push('//');
 out.push('// Legend:  # wall   o block   * jewel   D exit door   . empty');
 out.push('');
@@ -324,5 +433,6 @@ out.push('');
 process.stdout.write(out.join('\n'));
 console.error(
   `easy ${chosen.filter((c) => c.tier === 'easy').length}, ` +
-    `medium ${got.medium}, hard ${got.hard}  (${attempts} candidates tried)`,
+    `medium ${got.medium}, hard ${got.hard}, extreme ${got.extreme}  ` +
+    `(${attempts} candidates tried)`,
 );

@@ -115,6 +115,14 @@ export function showCampaignSelect(
   });
 }
 
+/** 'extreme' is too long for the badge, and "extra hard" is what it means. */
+const TIER_LABEL: Record<string, string> = {
+  easy: 'easy',
+  medium: 'medium',
+  hard: 'hard',
+  extreme: 'extra hard',
+};
+
 export function showLevelSelect(progress: Progress, campaignId: string): Promise<string | null> {
   const c = campaignById(campaignId);
   const unlocked = unlockedIn(progress, c);
@@ -131,7 +139,7 @@ export function showLevelSelect(progress: Progress, campaignId: string): Promise
 
     const best = bestFor(progress, c, i);
     const tier = level.tier
-      ? `<span class="tier tier--${level.tier}">${level.tier}</span>`
+      ? `<span class="tier tier--${level.tier}">${TIER_LABEL[level.tier] ?? level.tier}</span>`
       : '';
     btn.innerHTML = `
       <span class="levelcard__top">
