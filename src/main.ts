@@ -272,6 +272,22 @@ function frame(now: number): void {
 startLevel(progress.unlocked);
 requestAnimationFrame(frame);
 
-if (!localStorage.getItem('blockman.seenHelp')) {
-  void showHelp().then(() => localStorage.setItem('blockman.seenHelp', '1'));
+// Storage can throw outright in a sandboxed frame or private window, so the
+// first-run prompt must never depend on it succeeding.
+const SEEN_HELP = 'blockman.seenHelp';
+let seenHelp = false;
+try {
+  seenHelp = localStorage.getItem(SEEN_HELP) === '1';
+} catch {
+  seenHelp = false;
+}
+
+if (!seenHelp) {
+  void showHelp().then(() => {
+    try {
+      localStorage.setItem(SEEN_HELP, '1');
+    } catch {
+      // Nothing to do; the rules will simply show again next visit.
+    }
+  });
 }

@@ -7,6 +7,8 @@ Block-Man is a commoner in the kingdom of Bentangle who loves the princess.
 King Triangulos, who loves blocks, built a series of chambers that take real
 cleverness to escape. Get out of every one and you win her hand.
 
+**[Play it here](https://claude.ai/code/artifact/16eb947c-7439-4e0f-9488-5b4ba3eb9b16)** — or run it locally:
+
 ```
 npm install
 npm run dev      # http://localhost:5173
@@ -131,6 +133,7 @@ above.
 | `npm run build` | Typecheck then bundle to `dist/` |
 | `npm test` | 33 unit tests |
 | `npm run typecheck` | `tsc --noEmit` |
+| `node tools/make-artifact.mjs` | Flatten `dist/` into one self-contained HTML page |
 
 ## Credits
 
