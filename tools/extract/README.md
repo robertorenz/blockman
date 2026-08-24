@@ -126,11 +126,44 @@ screenshots by `from_screenshot.py`. Comparing block and door offsets relative
 to Block-Man's start, the two methods — JPEG pixel analysis and binary
 extraction — agree *exactly* on all three.
 
-### Still unsolved
+### Still unsolved: Block-Man 2
 
-**Block-Man 2's level records.** Not SOLSOFT, and not coordinate pairs — the
-even and odd byte streams have near-identical distributions. Worth redoing now
-that `BMAN2.EXE` decompresses correctly (517 prologues, 92 `int 21h`); the
-earlier analysis of it used the broken output.
+Re-examined after the decompression fix. `BMAN2.EXE` now decompresses correctly
+(229,952 bytes at offset `0x320`, 517 prologues, 92 `int 21h`, entropy 7.02 —
+and `0x320` is the *only* offset that yields valid code). Everything below
+supersedes the earlier analysis, which was done on the broken output.
+
+**What the strings now give up.** All in the clear, no cipher:
+
+- the full help text, including `SPECIAL OBJECTS`: *"Pick up and drop this"*
+  (block), *"Ride this across water"* (boat), *"Slide across this"* (rail),
+  *"Ride this up and down. Reappear at matching teleporter"*
+- `Play a level. Hold CTRL key for answer.` — the solutions are in the binary
+- `BMAN2.DAT`, and the 47 resource names matching `BMAN2.OV1`
+
+**What the image looks like**, profiled in 8 KB chunks:
+
+| Range | Contents |
+|---|---|
+| `0x00000`–`0x08000` | data segment: strings and tables |
+| `0x08000`–`0x30000` | code (the bulk) |
+| `0x30000`–`0x38000` | mostly zeros, with sparse scattered bytes |
+| `0x38000`–end | text |
+
+**There is no plain tile-map block anywhere in it.** Ruled out, each with a
+scan: length-prefixed records the way Block-Man 1 stores them (only hits are
+the `.pcx` name table and one unrelated 43-record run); any run of small tile
+indices ≤ 24 (one 656-byte region, far too small for ten scrolling levels); any
+region of 1.5 KB+ with a constrained alphabet; and an ascending 16-bit offset
+table (the one hit is an identity lookup, `01 02 03 04 …`).
+
+`BMAN2.OV1` is fully accounted for as a Genus Microprogramming archive — its
+47 directory entries plus payloads sum to exactly its 174,222 bytes, leaving no
+room for hidden level data.
+
+So Block-Man 2's rooms are packed, compressed, or built at run time. The next
+step is genuine disassembly: find the routine that populates the map array and
+read where it sources its bytes. That is a code-reading job, not a statistics
+job, and the strings and `int 21h` sites are now legible enough to start from.
 
 
